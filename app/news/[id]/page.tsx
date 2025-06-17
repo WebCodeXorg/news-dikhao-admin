@@ -60,13 +60,33 @@ export default function NewsArticlePage() {
         
         const db = await getFirebaseDb()
         
+        // Add error logging
+        console.log("Attempting to fetch post:", postId)
+        
         // First try to get it as a post
         const postRef = doc(db, "posts", postId)
-        const postSnap = await getDoc(postRef)
+        let postSnap
+        try {
+          postSnap = await getDoc(postRef)
+          console.log("Post fetch result:", { exists: postSnap.exists(), data: postSnap.exists() ? postSnap.data() : null })
+        } catch (err: any) {
+          console.error("Error fetching post:", err)
+          throw new Error(`Failed to fetch post: ${err.message}`)
+        }
         
         if (postSnap.exists()) {
           console.log("Found post document")
           const postData = postSnap.data() as NewsPost
+          
+          // Validate required fields
+          const requiredFields = ['title', 'content', 'category', 'imageUrl', 'createdAt'] as const
+          const missingFields = requiredFields.filter(field => !postData[field as keyof NewsPost])
+          
+          if (missingFields.length > 0) {
+            console.error("Missing required fields:", missingFields)
+            throw new Error(`Post is missing required fields: ${missingFields.join(', ')}`)
+          }
+          
           postData.id = postSnap.id
           
           setPost(postData)
@@ -160,8 +180,13 @@ export default function NewsArticlePage() {
         setError("समाचार नहीं मिला")
         
       } catch (error) {
-        console.error("Error fetching content:", error)
-        setError("समाचार लोड करने में समस्या हुई")
+        console.error("Detailed error in fetchContent:", error)
+        // Set a user-friendly error message
+        setError("समाचार लोड करने में समस्या हुई। कृपया पुनः प्रयास करें।")
+        // Redirect to not-found page after a brief delay
+        setTimeout(() => {
+          router.push('/news/not-found')
+        }, 2000)
       } finally {
         setLoading(false)
       }
