@@ -5,11 +5,18 @@ import Header from "@/components/Header"
 import Footer from "@/components/Footer"
 import { initializeFirebaseServices } from '@/lib/firebase-config'
 import { getFirestore, doc, getDoc } from 'firebase/firestore'
+import { Badge } from "@/components/ui/badge"
+import { Clock, Eye, Share2 } from "lucide-react"
 
 interface NewsData {
-  title?: string;
-  content?: string;
-  // Add other fields as needed
+  title: string;
+  content: string;
+  excerpt: string;
+  image: string;
+  category: string;
+  createdAt: any;
+  views: number;
+  author?: string;
 }
 
 export default function NewsPageClient({ newsId }: { newsId: string }) {
@@ -46,6 +53,19 @@ export default function NewsPageClient({ newsId }: { newsId: string }) {
     fetchNewsData()
   }, [newsId])
 
+  // Format date
+  const formatDate = (date: any) => {
+    if (!date) return "";
+    const d = new Date(date.seconds * 1000);
+    return d.toLocaleDateString('hi-IN', { 
+      year: 'numeric', 
+      month: 'long', 
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       <Header />
@@ -63,10 +83,55 @@ export default function NewsPageClient({ newsId }: { newsId: string }) {
               <p className="mt-4 text-gray-600 font-hindi">कृपया पुनः प्रयास करें</p>
             </div>
           ) : news ? (
-            <div className="prose prose-lg max-w-none font-hindi space-y-4">
+            <article className="prose prose-lg max-w-none font-hindi">
+              {/* Category and Meta Info */}
+              <div className="flex items-center justify-between mb-6">
+                <Badge className="bg-black text-white">{news.category}</Badge>
+                <div className="flex items-center space-x-4 text-sm text-gray-600">
+                  <div className="flex items-center space-x-1">
+                    <Clock className="w-4 h-4" />
+                    <span>{formatDate(news.createdAt)}</span>
+                  </div>
+                  <div className="flex items-center space-x-1">
+                    <Eye className="w-4 h-4" />
+                    <span>{news.views || 0} बार देखा गया</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Title */}
               <h1 className="text-3xl font-bold mb-4">{news.title}</h1>
-              <div className="mt-4">{news.content}</div>
-            </div>
+
+              {/* Image */}
+              {news.image && (
+                <div className="relative w-full h-[400px] mb-6">
+                  <img 
+                    src={news.image} 
+                    alt={news.title}
+                    className="w-full h-full object-cover rounded-lg"
+                  />
+                </div>
+              )}
+
+              {/* Excerpt */}
+              <div className="text-xl text-gray-600 mb-8 font-semibold">
+                {news.excerpt}
+              </div>
+
+              {/* Content */}
+              <div className="mt-6 text-gray-800 leading-relaxed">
+                {news.content}
+              </div>
+
+              {/* Author */}
+              {news.author && (
+                <div className="mt-8 pt-6 border-t">
+                  <p className="text-gray-600">
+                    लेखक: <span className="font-semibold">{news.author}</span>
+                  </p>
+                </div>
+              )}
+            </article>
           ) : null}
         </div>
       </main>
