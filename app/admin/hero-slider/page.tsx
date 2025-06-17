@@ -701,54 +701,56 @@ export default function HeroSliderPage() {
                 कोई स्लाइडर आइटम नहीं मिला
               </div>
             ) : (
-              <div className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {sliderItems
                   .sort((a, b) => a.order - b.order)
                   .map((item, index) => (
-                    <div key={item.id} className="p-4 rounded-lg bg-gray-700 border border-gray-600">
-                      <div className="flex items-start space-x-4">
-                        <div className="relative w-32 h-20 flex-shrink-0">
-                          <Image
-                            src={item.imageUrl || "/placeholder.svg"}
-                            alt={item.title}
-                            fill
-                            className="object-cover rounded"
-                          />
-                          {item.isBreaking && (
-                            <Badge className="absolute top-1 left-1 bg-red-600 text-white text-xs">ब्रेकिंग</Badge>
-                          )}
-                          {item.imageSize && (
-                            <div className="absolute bottom-1 right-1 bg-blue-600 px-1 py-0.5 rounded text-white text-xs">
-                              {item.imageSize.toFixed(1)} MB
-                            </div>
-                          )}
+                    <div key={item.id} className="rounded-lg bg-gray-700 border border-gray-600 overflow-hidden hover:border-gray-500 transition-all duration-300">
+                      {/* Image Section */}
+                      <div className="relative w-full h-48">
+                        <Image
+                          src={item.imageUrl || "/placeholder.svg"}
+                          alt={item.title}
+                          fill
+                          className="object-cover"
+                        />
+                        <div className="absolute top-2 left-2 bg-black/70 text-white px-3 py-1 rounded-full text-sm">
+                          #{index + 1}
                         </div>
-
-                        <div className="flex-1">
-                          <div className="flex items-center space-x-3 mb-2">
-                            <h3 className="font-semibold text-white font-hindi">{item.title}</h3>
-                            <Badge variant="outline" className="text-blue-400 border-blue-400">
-                              {item.categoryName || "अनजान श्रेणी"}
+                        {item.isBreaking && (
+                          <Badge className="absolute top-2 right-2 bg-red-600 text-white">ब्रेकिंग</Badge>
+                        )}
+                        {!item.isActive && (
+                          <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                            <Badge variant="outline" className="text-yellow-400 border-yellow-400 text-lg">
+                              निष्क्रिय
                             </Badge>
-                            <div className="flex items-center space-x-1">
-                              <Switch checked={item.isActive} onCheckedChange={() => toggleItemStatus(item.id)} />
-                              <span className="text-sm text-gray-300 font-hindi">
-                                {item.isActive ? "सक्रिय" : "निष्क्रिय"}
-                              </span>
-                            </div>
                           </div>
+                        )}
+                      </div>
 
-                          <p className="text-gray-300 font-hindi text-sm mb-2">{item.excerpt}</p>
-
-                          <div className="flex items-center space-x-4 text-xs text-gray-400">
-                            <span>क्रम: {item.order}</span>
-                            <span>बनाया गया: {item.createdAt instanceof Date 
-                              ? item.createdAt.toISOString().split('T')[0] 
-                              : item.createdAt?.toDate?.()?.toISOString?.()?.split('T')[0] || 'अज्ञात'}</span>
-                          </div>
+                      {/* Content Section */}
+                      <div className="p-4">
+                        <div className="flex items-center gap-2 mb-3">
+                          <Badge variant="outline" className="text-blue-400 border-blue-400">
+                            {item.categoryName || "अनजान श्रेणी"}
+                          </Badge>
+                          {item.imageSize && (
+                            <span className="text-xs text-gray-400">{item.imageSize.toFixed(1)} MB</span>
+                          )}
                         </div>
 
-                        <div className="flex flex-col space-y-2">
+                        <h3 className="font-semibold text-white font-hindi text-lg mb-2 line-clamp-2">{item.title}</h3>
+
+                        {/* Controls Section */}
+                        <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-600">
+                          <div className="flex items-center space-x-2">
+                            <Switch checked={item.isActive} onCheckedChange={() => toggleItemStatus(item.id)} />
+                            <span className="text-sm text-gray-300 font-hindi">
+                              {item.isActive ? "सक्रिय" : "निष्क्रिय"}
+                            </span>
+                          </div>
+                          
                           <div className="flex items-center space-x-1">
                             <Button
                               variant="ghost"
@@ -768,9 +770,6 @@ export default function HeroSliderPage() {
                             >
                               <ArrowDown className="w-4 h-4" />
                             </Button>
-                          </div>
-
-                          <div className="flex items-center space-x-1">
                             <Button
                               variant="ghost"
                               size="icon"

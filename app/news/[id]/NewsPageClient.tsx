@@ -3,47 +3,34 @@
 import { useEffect, useState } from 'react'
 import Header from "@/components/Header"
 import Footer from "@/components/Footer"
-import { initializeFirebaseServices } from '@/lib/firebase-config'
-import { getFirestore, doc, getDoc } from 'firebase/firestore'
 import { Badge } from "@/components/ui/badge"
 import { Clock, Eye, Share2 } from "lucide-react"
-
-interface NewsData {
-  title: string;
-  content: string;
-  excerpt: string;
-  image: string;
-  category: string;
-  createdAt: any;
-  views: number;
-  author?: string;
-}
+import { getPostById, Post } from '@/lib/firebase-posts'
 
 export default function NewsPageClient({ newsId }: { newsId: string }) {
-  const [news, setNews] = useState<NewsData | null>(null)
+  const [news, setNews] = useState<Post | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     async function fetchNewsData() {
       try {
+        console.log("Fetching news with ID:", newsId);
         setLoading(true)
         setError(null)
         
-        // Initialize Firebase
-        const { db } = await initializeFirebaseServices()
+        const post = await getPostById(newsId);
+        console.log("Fetched post:", post);
         
-        // Fetch news data
-        const newsDoc = await getDoc(doc(db, "news", newsId))
-        
-        if (!newsDoc.exists()) {
+        if (!post) {
+          console.log("Post not found");
           setError("न्यूज़ नहीं मिली")
           return
         }
         
-        setNews(newsDoc.data() as NewsData)
+        setNews(post)
       } catch (err) {
-        console.error("Error fetching news:", err)
+        console.error("Error details:", err)
         setError("न्यूज़ लोड करने में समस्या आई है")
       } finally {
         setLoading(false)
@@ -65,6 +52,9 @@ export default function NewsPageClient({ newsId }: { newsId: string }) {
       minute: '2-digit'
     });
   }
+
+  // Debug render
+  console.log("Current state:", { loading, error, news });
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -103,10 +93,10 @@ export default function NewsPageClient({ newsId }: { newsId: string }) {
               <h1 className="text-3xl font-bold mb-4">{news.title}</h1>
 
               {/* Image */}
-              {news.image && (
+              {news.imageUrl && (
                 <div className="relative w-full h-[400px] mb-6">
                   <img 
-                    src={news.image} 
+                    src={news.imageUrl} 
                     alt={news.title}
                     className="w-full h-full object-cover rounded-lg"
                   />
@@ -119,7 +109,7 @@ export default function NewsPageClient({ newsId }: { newsId: string }) {
               </div>
 
               {/* Content */}
-              <div className="mt-6 text-gray-800 leading-relaxed">
+              <div className="mt-6 text-gray-800 leading-relaxed whitespace-pre-wrap">
                 {news.content}
               </div>
 
@@ -131,6 +121,14 @@ export default function NewsPageClient({ newsId }: { newsId: string }) {
                   </p>
                 </div>
               )}
+
+              {/* Debug Info */}
+              <div className="mt-8 p-4 bg-gray-100 rounded-lg">
+                <h3 className="text-sm font-mono">Debug Info:</h3>
+                <pre className="text-xs mt-2 overflow-auto">
+                  {JSON.stringify({ newsId, news }, null, 2)}
+                </pre>
+              </div>
             </article>
           ) : null}
         </div>
