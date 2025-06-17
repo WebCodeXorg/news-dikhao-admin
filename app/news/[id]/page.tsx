@@ -58,15 +58,20 @@ async function getPost(postId: string): Promise<NewsPost | null> {
   }
 }
 
-export default async function NewsArticlePage({ params }: { params: { id: string } }) {
-  const post = await getPost(params.id)
-  
-  if (!post) {
-    console.log("Server: Redirecting to not-found")
-    notFound()
-  }
-
-  return <NewsArticleClient post={post} />
+export default function NewsArticlePage() {
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <main className="container mx-auto px-4 py-8">
+        <div className="bg-white rounded-lg shadow-md p-6">
+          <h1 className="text-3xl font-bold mb-4 font-hindi">टेस्ट पेज</h1>
+          <div className="prose prose-lg max-w-none font-hindi">
+            <p>यह एक टेस्ट पेज है। यहां कोई डेटा नहीं है।</p>
+            <p>अगर यह पेज दिख रहा है, तो समस्या डेटा फेचिंग में है।</p>
+          </div>
+        </div>
+      </main>
+    </div>
+  )
 }
 
 // Generate metadata for SEO
