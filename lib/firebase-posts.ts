@@ -25,24 +25,8 @@ import {
   getDownloadURL,
   deleteObject
 } from 'firebase/storage'
-
-export interface Post {
-  id?: string
-  title: string
-  content: string
-  excerpt: string
-  category: string
-  tags: string[]
-  status: 'published' | 'draft'
-  isBreaking: boolean
-  addToSlider?: boolean
-  imageUrl?: string
-  createdAt?: any
-  updatedAt?: any
-  author: string
-  views: number
-  language: 'hindi' | 'english'
-}
+import { Post } from './types'
+export type { Post }
 
 /**
  * Upload an image to Firebase Storage

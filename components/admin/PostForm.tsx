@@ -26,7 +26,11 @@ interface Category {
   createdAt: any
 }
 
-export default function PostForm() {
+interface PostFormProps {
+  postId?: string // Optional postId for edit mode
+}
+
+export default function PostForm({ postId }: PostFormProps) {
   const router = useRouter()
   const [title, setTitle] = useState("")
   const [description, setDescription] = useState("")
@@ -50,6 +54,9 @@ export default function PostForm() {
   const [categories, setCategories] = useState<Category[]>([])
   const [categoriesLoading, setCategoriesLoading] = useState(true)
   const [imageSize, setImageSize] = useState<string>("")
+  const [imageUrl, setImageUrl] = useState<string>("")
+  const [isLoading, setIsLoading] = useState(false)
+  const [mounted, setMounted] = useState(true)
 
   const handleImageChange = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -142,6 +149,44 @@ export default function PostForm() {
     }
   }
 
+  // Load post data if in edit mode
+  useEffect(() => {
+    const fetchPost = async () => {
+      if (!postId) return
+      
+      try {
+        setIsLoading(true)
+        const db = await getFirebaseDb()
+        const postDoc = await getDoc(doc(db, "posts", postId))
+        
+        if (postDoc.exists()) {
+          const post = postDoc.data()
+          setTitle(post.title || "")
+          setDescription(post.excerpt || "")
+          setContent(post.content || "")
+          setCategory(post.category || "")
+          setTags(post.tags || [])
+          setIsBreaking(post.isBreaking || false)
+          if (post.imageUrl) {
+            setImagePreview(post.imageUrl)
+            setImageUrl(post.imageUrl)
+          }
+        } else {
+          setError("पोस्ट नहीं मिला")
+        }
+      } catch (error) {
+        console.error("Error fetching post:", error)
+        setError("पोस्ट लोड करने में त्रुटि हुई")
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    if (mounted && postId) {
+      fetchPost()
+    }
+  }, [postId, mounted])
+
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
     
@@ -161,12 +206,13 @@ export default function PostForm() {
       return
     }
     
-    if (!imageFile) {
+    // Only require image for new posts
+    if (!postId && !imageFile) {
       setError("इमेज आवश्यक है")
       return
     }
     
-    // Validate image format
+    // Validate image format if uploading new image
     if (imageFile) {
       const fileExtension = imageFile.name.split('.').pop()?.toLowerCase()
       const allowedFormats = ['jpg', 'jpeg', 'png', 'webp']
@@ -182,47 +228,32 @@ export default function PostForm() {
     
     try {
       // Handle image upload if needed
-      let imageUrl = ""
-      let uploadedImageSize = 0
+      let finalImageUrl = imageUrl // Use existing image URL by default
       
       if (imageFile) {
         try {
-          // Set initial upload progress
           setUploadProgress(10)
+          const uploadedImageSize = imageFile.size / (1024 * 1024)
           
-          // Save the image size in MB for storage tracking
-          uploadedImageSize = imageFile.size / (1024 * 1024)
+          const { preset, url } = await findWorkingUploadPreset(
+            imageFile,
+            (progress) => {
+              setUploadProgress(progress)
+              console.log(`Upload progress: ${progress}%`)
+            }
+          )
           
-          // Try to find a working preset first with progress tracking
-          console.log("Finding working upload preset...")
-          try {
-            const { preset, url } = await findWorkingUploadPreset(
-              imageFile,
-              (progress) => {
-                setUploadProgress(progress)
-                console.log(`Upload progress: ${progress}%`)
-              }
-            )
-            console.log(`Found working preset: ${preset}`)
-            imageUrl = url
-            setUploadProgress(100)
-            console.log("Upload completed successfully:", url)
-            
-            // If we got here, the upload was successful, so we can continue with saving the post
-          } catch (uploadError) {
-            console.error("All upload attempts failed:", uploadError)
-            throw new Error("No working upload preset found. Please check your Cloudinary configuration.")
-          }
+          finalImageUrl = url
+          setUploadProgress(100)
+          console.log("Upload completed successfully:", url)
           
-          // We've already handled the upload with findWorkingUploadPreset
-          // No need for additional XMLHttpRequest here
-        } catch (error) {
-          console.error("Error uploading image:", error)
-          throw new Error(`Image upload failed: ${error instanceof Error ? error.message : 'Unknown error'}`)
+        } catch (uploadError) {
+          console.error("All upload attempts failed:", uploadError)
+          throw new Error("No working upload preset found. Please check your Cloudinary configuration.")
         }
       }
       
-      // Find the selected category object to get its name and slug
+      // Find the selected category object
       const selectedCategory = categories.find(cat => cat.id === category)
       
       // Prepare post data
@@ -230,89 +261,33 @@ export default function PostForm() {
         title,
         description,
         content,
-        excerpt: description, // Use description as excerpt
-        category, // This is the category ID
-        categoryName: selectedCategory?.name || "", // Also store the category name
-        categorySlug: selectedCategory?.slug || "", // Add category slug
+        excerpt: description,
+        category,
+        categoryName: selectedCategory?.name || "",
+        categorySlug: selectedCategory?.slug || "",
         tags,
-        status: "published", // Always published
+        status: "published",
         isBreaking,
-        author: "Admin", // You might want to get this from authentication context
-        imageUrl: imageUrl, // Changed from postImage to imageUrl to match the Post interface
-        imageSize: uploadedImageSize.toFixed(2) // Store image size in MB
-      }
-      
-      console.log("Saving post to Firestore with data:", postData)
-      
-      // Save to Firestore
-      const db = await getFirebaseDb()
-      const docRef = await addDoc(collection(db, "posts"), {
-        ...postData,
-        createdAt: serverTimestamp(),
-        views: 0,
+        author: "Admin",
+        imageUrl: finalImageUrl,
         updatedAt: serverTimestamp()
-      })
-      
-      // Track storage usage
-      try {
-        // First check if storage collection exists
-        const storageCollectionRef = collection(db, "storage_usage")
-        
-        // Get current total storage
-        const storageQuery = await getDocs(storageCollectionRef)
-        let totalStorageUsed = 0
-        let storageDocId = null
-        
-        if (!storageQuery.empty) {
-          // Get the first document (we'll just use one document to track total storage)
-          const storageDoc = storageQuery.docs[0]
-          storageDocId = storageDoc.id
-          totalStorageUsed = storageDoc.data().totalSize || 0
-        }
-        
-        // Add current image size to total
-        totalStorageUsed += uploadedImageSize
-        
-        // Update or create storage tracking document
-        if (storageDocId) {
-          // Update existing document
-          await updateDoc(doc(db, "storage_usage", storageDocId), {
-            totalSize: totalStorageUsed,
-            lastUpdated: serverTimestamp(),
-            lastImageSize: uploadedImageSize
-          })
-        } else {
-          // Create new document
-          await addDoc(collection(db, "storage_usage"), {
-            totalSize: uploadedImageSize,
-            lastUpdated: serverTimestamp(),
-            lastImageSize: uploadedImageSize
-          })
-        }
-        
-        console.log(`Storage usage updated. Total: ${totalStorageUsed.toFixed(2)} MB`)
-      } catch (storageError) {
-        // Just log the error but don't fail the post submission
-        console.error("Error updating storage usage:", storageError)
       }
       
-      const postId = docRef.id
-      console.log("Post saved with ID:", postId)
+      const db = await getFirebaseDb()
       
-      // Debug: Verify the post was saved correctly by fetching it
-      try {
-        const savedPostRef = doc(db, "posts", postId)
-        const savedPostSnap = await getDoc(savedPostRef)
-        if (savedPostSnap.exists()) {
-          console.log("Verified saved post data:", savedPostSnap.data())
-        } else {
-          console.error("Failed to verify saved post - document not found")
-        }
-      } catch (verifyError) {
-        console.error("Error verifying saved post:", verifyError)
+      if (postId) {
+        // Update existing post
+        await updateDoc(doc(db, "posts", postId), postData)
+        setSuccess("पोस्ट सफलतापूर्वक अपडेट किया गया")
+      } else {
+        // Create new post
+        const docRef = await addDoc(collection(db, "posts"), {
+          ...postData,
+          createdAt: serverTimestamp(),
+          views: 0
+        })
+        setSuccess("पोस्ट सफलतापूर्वक बनाया गया")
       }
-      
-      setSuccess("पोस्ट सफलतापूर्वक सबमिट की गई")
       
       // Redirect to posts management page after a short delay
       setTimeout(() => {
@@ -321,11 +296,10 @@ export default function PostForm() {
       
     } catch (error: any) {
       console.error("Error submitting post:", error)
-      // Handle specific error messages
       if (error.message?.includes('Upload failed')) {
-        setError("पोस्ट सबमित करने में त्रुटि हुई: इमेज अपलोड नहीं हो सकी। कृपया अपनी इंटरनेट कनेक्शन जांचें या दूसरी इमेज का प्रयास करें।")
+        setError("पोस्ट सबमित करने में त्रुटि हुई: इमेज अपलोड नहीं हो सकी")
       } else {
-        setError(`पोस्ट सबमिट करने में त्रुटि हुई: ${error.message || "अज्ञात त्रुटि"}`)
+        setError(`पोस्ट सबमित करने में त्रुटि हुई: ${error.message || "अज्ञात त्रुटि"}`)
       }
     } finally {
       setIsSubmitting(false)
@@ -423,7 +397,11 @@ export default function PostForm() {
                 <Label className="text-gray-300 font-hindi text-base font-semibold">
                   श्रेणी
                 </Label>
-                <Select value={category} onValueChange={setCategory}>
+                <Select 
+                  value={category} 
+                  onValueChange={setCategory}
+                  defaultValue={category}
+                >
                   <SelectTrigger className="mt-1 bg-gray-700 border-gray-600 text-white font-hindi focus:ring-2 focus:ring-blue-500">
                     <SelectValue placeholder="श्रेणी चुनें" />
                   </SelectTrigger>

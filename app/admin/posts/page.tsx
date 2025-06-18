@@ -2,16 +2,17 @@
 
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Edit, Trash2, Plus, Search, Filter, Eye, Calendar } from "lucide-react"
+import { Edit, Trash2, Plus, Search, Filter, Eye, Calendar, MoreVertical } from "lucide-react"
 import AdminLayout from "@/components/admin/AdminLayout"
 import { Post, updatePost, deletePost } from "@/lib/firebase-posts"
 import { useRouter } from "next/navigation"
 import { getFirebaseDb } from "@/lib/firebase-config"
 import { collection, getDocs } from "firebase/firestore"
+import Image from "next/image"
 
 export default function ManageNewsPage() {
   const [posts, setPosts] = useState<Post[]>([])
@@ -65,14 +66,21 @@ export default function ManageNewsPage() {
           fetchedPosts.push({ id: doc.id, ...doc.data() } as Post)
         })
         
-        console.log("Fetched posts directly:", fetchedPosts)
+        // Get categories to map IDs to names
+        const categoriesSnapshot = await getDocs(collection(db, "categories"))
+        const categoriesMap = new Map()
+        categoriesSnapshot.forEach((doc) => {
+          categoriesMap.set(doc.id, doc.data().name)
+        })
         
-        if (fetchedPosts.length === 0) {
-          console.log("No posts found in Firestore.")
-        }
+        // Add category names to posts
+        const postsWithCategories = fetchedPosts.map(post => ({
+          ...post,
+          categoryName: categoriesMap.get(post.category) || post.category
+        }))
         
-        setPosts(fetchedPosts)
-        setFilteredPosts(fetchedPosts)
+        setPosts(postsWithCategories)
+        setFilteredPosts(postsWithCategories)
       } catch (error) {
         console.error("Error fetching posts:", error)
       } finally {
@@ -220,7 +228,7 @@ export default function ManageNewsPage() {
           </CardContent>
         </Card>
 
-        {/* Posts List */}
+        {/* Posts Grid */}
         <Card className="border-gray-700 bg-gray-800">
           <CardHeader>
             <CardTitle className="text-white font-hindi">
@@ -232,7 +240,8 @@ export default function ManageNewsPage() {
           <CardContent>
             {loading ? (
               <div className="text-center py-8">
-                <p className="text-gray-500 font-hindi">
+                <div className="w-16 h-16 border-4 border-t-blue-600 border-gray-600 rounded-full animate-spin mx-auto"></div>
+                <p className="text-gray-500 font-hindi mt-4">
                   {language === "hindi" ? "लोड हो रहा है..." : "Loading..."}
                 </p>
               </div>
@@ -248,121 +257,102 @@ export default function ManageNewsPage() {
                 </Button>
               </div>
             ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b border-gray-700">
-                      <th className="text-left py-3 px-4 text-gray-300 font-hindi">
-                        {language === "hindi" ? "शीर्षक" : "Title"}
-                      </th>
-                      <th className="text-left py-3 px-4 text-gray-300 font-hindi">
-                        {language === "hindi" ? "श्रेणी" : "Category"}
-                      </th>
-                      <th className="text-left py-3 px-4 text-gray-300 font-hindi">
-                        {language === "hindi" ? "लेखक" : "Author"}
-                      </th>
-                      <th className="text-left py-3 px-4 text-gray-300 font-hindi">
-                        {language === "hindi" ? "स्थिति" : "Status"}
-                      </th>
-                      <th className="text-left py-3 px-4 text-gray-300 font-hindi">
-                        {language === "hindi" ? "व्यूज" : "Views"}
-                      </th>
-                      <th className="text-left py-3 px-4 text-gray-300 font-hindi">
-                        {language === "hindi" ? "दिनांक" : "Date"}
-                      </th>
-                      <th className="text-left py-3 px-4 text-gray-300 font-hindi">
-                        {language === "hindi" ? "एक्शन" : "Action"}
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredPosts.map((post) => (
-                      <tr key={post.id} className="border-b border-gray-700 hover:bg-gray-700">
-                        <td className="py-3 px-4">
-                          <div className="space-y-1">
-                            <div className="font-medium text-white font-hindi flex items-center">
-                              {post.title}
-                              {post.isBreaking && <Badge className="ml-2 bg-red-600 text-white text-xs">
-                                {language === "hindi" ? "ब्रेकिंग" : "Breaking"}
-                              </Badge>}
-                            </div>
-                            {post.tags && post.tags.length > 0 && (
-                              <div className="flex flex-wrap gap-1">
-                                {post.tags.slice(0, 3).map((tag, index) => (
-                                  <Badge
-                                    key={index}
-                                    variant="outline"
-                                    className="text-xs border-gray-600 text-gray-400"
-                                  >
-                                    {tag}
-                                  </Badge>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                        </td>
-                        <td className="py-3 px-4">
-                          <Badge variant="outline" className="font-hindi border-blue-500 text-blue-400">
-                            {post.categoryName || post.category}
-                          </Badge>
-                        </td>
-                        <td className="py-3 px-4">
-                          <span className="text-gray-300 font-hindi">{post.author}</span>
-                        </td>
-                        <td className="py-3 px-4">
-                          <button
-                            onClick={() => post.id && toggleStatus(post.id)}
-                            className={`px-3 py-1 rounded-full text-sm font-hindi ${
-                              post.status === "published"
-                                ? "bg-green-600 text-white hover:bg-green-700"
-                                : "bg-yellow-600 text-white hover:bg-yellow-700"
-                            }`}
-                          >
-                            {post.status === "published" 
-                              ? (language === "hindi" ? "प्रकाशित" : "Published") 
-                              : (language === "hindi" ? "ड्राफ्ट" : "Draft")}
-                          </button>
-                        </td>
-                        <td className="py-3 px-4">
-                          <div className="flex items-center text-gray-400">
-                            <Eye className="w-4 h-4 mr-1" />
-                            {post.views.toLocaleString()}
-                          </div>
-                        </td>
-                        <td className="py-3 px-4">
-                          <div className="flex items-center text-gray-400">
-                            <Calendar className="w-4 h-4 mr-1" />
-                            {post.createdAt 
-                              ? new Date(post.createdAt.seconds * 1000).toLocaleDateString(
-                                  language === "hindi" ? "hi-IN" : "en-US"
-                                )
-                              : "-"}
-                          </div>
-                        </td>
-                        <td className="py-3 px-4">
-                          <div className="flex items-center space-x-2">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => post.id && handleEditPost(post.id)}
-                              className="text-blue-400 hover:bg-blue-600 hover:text-white"
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {filteredPosts.map((post) => (
+                  <Card key={post.id} className="border-gray-700 bg-gray-750 hover:bg-gray-700 transition-colors">
+                    {/* Post Image */}
+                    <div className="relative aspect-video">
+                      <Image
+                        src={post.imageUrl || "/placeholder.jpg"}
+                        alt={post.title}
+                        fill
+                        className="object-cover rounded-t-lg"
+                      />
+                      {post.isBreaking && (
+                        <Badge className="absolute top-2 left-2 bg-red-600 text-white">
+                          {language === "hindi" ? "ब्रेकिंग" : "Breaking"}
+                        </Badge>
+                      )}
+                    </div>
+
+                    <CardContent className="p-4">
+                      {/* Title */}
+                      <h3 className="text-lg font-semibold text-white font-hindi mb-2 line-clamp-2">
+                        {post.title}
+                      </h3>
+
+                      {/* Category & Status */}
+                      <div className="flex items-center justify-between mb-3">
+                        <Badge variant="outline" className="font-hindi border-blue-500 text-blue-400">
+                          {post.categoryName || post.category}
+                        </Badge>
+                        <Badge 
+                          className={`font-hindi ${
+                            post.status === "published"
+                              ? "bg-green-600 hover:bg-green-700"
+                              : "bg-yellow-600 hover:bg-yellow-700"
+                          } text-white`}
+                        >
+                          {post.status === "published" 
+                            ? (language === "hindi" ? "प्रकाशित" : "Published") 
+                            : (language === "hindi" ? "ड्राफ्ट" : "Draft")}
+                        </Badge>
+                      </div>
+
+                      {/* Tags */}
+                      {post.tags && post.tags.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mb-3">
+                          {post.tags.slice(0, 3).map((tag: string, index: number) => (
+                            <Badge
+                              key={index}
+                              variant="outline"
+                              className="text-xs border-gray-600 text-gray-400"
                             >
-                              <Edit className="w-4 h-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => post.id && handleDelete(post.id)}
-                              className="text-red-400 hover:bg-red-600 hover:text-white"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                              {tag}
+                            </Badge>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Meta Information */}
+                      <div className="flex items-center justify-between text-sm text-gray-400">
+                        <div className="flex items-center">
+                          <Eye className="w-4 h-4 mr-1" />
+                          {post.views.toLocaleString()}
+                        </div>
+                        <div className="flex items-center">
+                          <Calendar className="w-4 h-4 mr-1" />
+                          {post.createdAt 
+                            ? new Date(post.createdAt.seconds * 1000).toLocaleDateString(
+                                language === "hindi" ? "hi-IN" : "en-US"
+                              )
+                            : "-"}
+                        </div>
+                      </div>
+                    </CardContent>
+
+                    <CardFooter className="px-4 py-3 border-t border-gray-700 flex justify-between">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => post.id && handleEditPost(post.id)}
+                        className="text-blue-400 hover:bg-blue-600 hover:text-white"
+                      >
+                        <Edit className="w-4 h-4 mr-2" />
+                        {language === "hindi" ? "संपादित करें" : "Edit"}
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => post.id && handleDelete(post.id)}
+                        className="text-red-400 hover:bg-red-600 hover:text-white"
+                      >
+                        <Trash2 className="w-4 h-4 mr-2" />
+                        {language === "hindi" ? "हटाएं" : "Delete"}
+                      </Button>
+                    </CardFooter>
+                  </Card>
+                ))}
               </div>
             )}
           </CardContent>
