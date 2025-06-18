@@ -34,7 +34,6 @@ const sidebarItems = [
   { icon: Plus, label: "नया पोस्ट", href: "/admin/posts/new" },
   { icon: FileText, label: "समाचार प्रबंधन", href: "/admin/posts" },
   { icon: Tag, label: "श्रेणी प्रबंधन", href: "/admin/categories" },
-  { icon: ImageIcon, label: "हीरो स्लाइडर", href: "/admin/hero-slider" },
   { icon: Phone, label: "संपर्क प्रबंधन", href: "/admin/contacts" },
   { icon: Users, label: "यूजर रोल्स", href: "/admin/user-roles" },
 ]

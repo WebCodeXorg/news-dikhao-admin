@@ -40,7 +40,6 @@ export default function PostForm() {
   const [imagePreview, setImagePreview] = useState<string>("")
   const [uploadProgress, setUploadProgress] = useState(0)
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [language] = useState<"hindi">("hindi")
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
   const [previewOpen, setPreviewOpen] = useState(false)
@@ -223,7 +222,7 @@ export default function PostForm() {
         }
       }
       
-      // Find the selected category object to get its name
+      // Find the selected category object to get its name and slug
       const selectedCategory = categories.find(cat => cat.id === category)
       
       // Prepare post data
@@ -234,12 +233,12 @@ export default function PostForm() {
         excerpt: description, // Use description as excerpt
         category, // This is the category ID
         categoryName: selectedCategory?.name || "", // Also store the category name
+        categorySlug: selectedCategory?.slug || "", // Add category slug
         tags,
         status: "published", // Always published
         isBreaking,
         author: "Admin", // You might want to get this from authentication context
         imageUrl: imageUrl, // Changed from postImage to imageUrl to match the Post interface
-        language: "hindi", // Always hindi
         imageSize: uploadedImageSize.toFixed(2) // Store image size in MB
       }
       
