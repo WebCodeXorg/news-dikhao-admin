@@ -9,10 +9,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Edit, Trash2, Plus, Search, Filter, Eye, Calendar, MoreVertical } from "lucide-react"
 import AdminLayout from "@/components/admin/AdminLayout"
 import { Post, updatePost, deletePost } from "@/lib/firebase-posts"
-import { useRouter } from "next/navigation"
 import { getFirebaseDb } from "@/lib/firebase-config"
 import { collection, getDocs } from "firebase/firestore"
 import Image from "next/image"
+import Link from "next/link"
 
 export default function ManageNewsPage() {
   const [posts, setPosts] = useState<Post[]>([])
@@ -24,7 +24,6 @@ export default function ManageNewsPage() {
   const [language, setLanguage] = useState<"hindi" | "english">("hindi")
   const [categories, setCategories] = useState<{id: string, name: string}[]>([])
   const [categoriesLoading, setCategoriesLoading] = useState(true)
-  const router = useRouter()
 
   const fetchCategories = async () => {
     try {
@@ -154,10 +153,6 @@ export default function ManageNewsPage() {
     } finally {
       setLoading(false)
     }
-  }
-
-  const handleEditPost = (id: string) => {
-    router.push(`/admin/posts/edit/${id}`)
   }
 
   if (!mounted) {
@@ -335,11 +330,13 @@ export default function ManageNewsPage() {
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => post.id && handleEditPost(post.id)}
+                        asChild
                         className="text-blue-400 hover:bg-blue-600 hover:text-white"
                       >
-                        <Edit className="w-4 h-4 mr-2" />
-                        {language === "hindi" ? "संपादित करें" : "Edit"}
+                        <Link href={`/admin/posts/edit/${post.id}`}>
+                          <Edit className="w-4 h-4 mr-2" />
+                          {language === "hindi" ? "संपादित करें" : "Edit"}
+                        </Link>
                       </Button>
                       <Button
                         variant="ghost"
