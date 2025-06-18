@@ -11,7 +11,7 @@ import AdminLayout from "@/components/admin/AdminLayout"
 import { Post, updatePost, deletePost } from "@/lib/firebase-posts"
 import { useRouter } from "next/navigation"
 import { getFirebaseDb } from "@/lib/firebase-config"
-import { collection, getDocs } from "firebase/firestore"
+import { collection, getDocs, onSnapshot } from "firebase/firestore"
 import Image from "next/image"
 
 export default function ManageNewsPage() {
@@ -53,50 +53,59 @@ export default function ManageNewsPage() {
   }
 
   useEffect(() => {
-    const fetchPosts = async () => {
+    const setupRealtimeListener = async () => {
       try {
         setLoading(true)
-        console.log("Fetching posts from Firestore directly...")
+        console.log("Setting up realtime listener for posts...")
         
         const db = await getFirebaseDb()
-        const querySnapshot = await getDocs(collection(db, "posts"))
         
-        const fetchedPosts: Post[] = []
-        querySnapshot.forEach((doc) => {
-          fetchedPosts.push({ id: doc.id, ...doc.data() } as Post)
-        })
-        
-        // Get categories to map IDs to names
+        // Get categories first
         const categoriesSnapshot = await getDocs(collection(db, "categories"))
         const categoriesMap = new Map()
         categoriesSnapshot.forEach((doc) => {
           categoriesMap.set(doc.id, doc.data().name)
         })
         
-        // Add category names to posts
-        const postsWithCategories = fetchedPosts.map(post => ({
-          ...post,
-          categoryName: categoriesMap.get(post.category) || post.category
-        }))
+        // Setup realtime listener for posts
+        const unsubscribe = onSnapshot(collection(db, "posts"), (snapshot) => {
+          const fetchedPosts: Post[] = []
+          snapshot.forEach((doc) => {
+            const post = { id: doc.id, ...doc.data() } as Post
+            fetchedPosts.push({
+              ...post,
+              categoryName: categoriesMap.get(post.category) || post.category
+            })
+          })
+          
+          console.log("Realtime update received:", fetchedPosts.length, "posts")
+          setPosts(fetchedPosts)
+          setFilteredPosts(fetchedPosts)
+          setLoading(false)
+        }, (error) => {
+          console.error("Error in realtime listener:", error)
+          setLoading(false)
+        })
         
-        setPosts(postsWithCategories)
-        setFilteredPosts(postsWithCategories)
+        // Cleanup function
+        return () => {
+          console.log("Cleaning up realtime listener...")
+          unsubscribe()
+        }
       } catch (error) {
-        console.error("Error fetching posts:", error)
-      } finally {
+        console.error("Error setting up realtime listener:", error)
         setLoading(false)
       }
     }
 
     if (mounted) {
-      fetchPosts()
+      const cleanup = setupRealtimeListener()
       fetchCategories()
+      return () => {
+        cleanup.then(unsubscribe => unsubscribe())
+      }
     }
   }, [mounted])
-
-  useEffect(() => {
-    setMounted(true)
-  }, [])
 
   useEffect(() => {
     let filtered = posts
