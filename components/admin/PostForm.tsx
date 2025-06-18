@@ -162,7 +162,7 @@ export default function PostForm({ postId }: PostFormProps) {
         if (postDoc.exists()) {
           const post = postDoc.data()
           setTitle(post.title || "")
-          setDescription(post.excerpt || "")
+          setDescription(post.description || "")
           setContent(post.content || "")
           setCategory(post.category || "")
           setTags(post.tags || [])
@@ -397,11 +397,7 @@ export default function PostForm({ postId }: PostFormProps) {
                 <Label className="text-gray-300 font-hindi text-base font-semibold">
                   श्रेणी
                 </Label>
-                <Select 
-                  value={category} 
-                  onValueChange={setCategory}
-                  defaultValue={category}
-                >
+                <Select value={category} onValueChange={setCategory}>
                   <SelectTrigger className="mt-1 bg-gray-700 border-gray-600 text-white font-hindi focus:ring-2 focus:ring-blue-500">
                     <SelectValue placeholder="श्रेणी चुनें" />
                   </SelectTrigger>
